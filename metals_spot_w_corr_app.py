@@ -644,8 +644,8 @@ with st.sidebar:
     show_gold_open = st.checkbox("Show gold open $/oz", value=False)
     
     st.markdown("---")
-    st.subheader("If you're a fan of my work, consider:")
-    button(username="ryanaday", floating=False, width=221)
+    #st.subheader("If you're a fan of my work, consider:")
+    #button(username="ryanaday", floating=False, width=221)
     
     st.markdown("---")
     st.subheader("Data references")
