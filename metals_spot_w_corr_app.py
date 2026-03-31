@@ -200,26 +200,47 @@ def get_yahoo_metals_data_resilient(start_date: pd.Timestamp, end_date: pd.Times
         raise RuntimeError("Yahoo Finance pull failed and no local Yahoo cache file exists.")
         
 def fetch_fred_series_live(series_code: str, start_date: pd.Timestamp, end_date: pd.Timestamp) -> pd.Series:
-    url = (
-        f"https://fred.stlouisfed.org/graph/fredgraph.csv"
-        f"?id={series_code}"
-        f"&cosd={start_date.strftime('%Y-%m-%d')}"
-        f"&coed={end_date.strftime('%Y-%m-%d')}"
-    )
+    url = "https://fred.stlouisfed.org/graph/fredgraph.csv"
+    params = {
+        "id": series_code,
+        "cosd": start_date.strftime("%Y-%m-%d"),
+        "coed": end_date.strftime("%Y-%m-%d"),
+    }
+    headers = {
+        "User-Agent": "Mozilla/5.0",
+        "Accept": "text/csv, text/plain, */*",
+    }
 
-    response = requests.get(url, timeout=30)
+    response = requests.get(url, params=params, headers=headers, timeout=30)
     response.raise_for_status()
 
-    df = pd.read_csv(io.StringIO(response.text))
-    if df.empty or "DATE" not in df.columns or series_code not in df.columns:
-        raise ValueError(f"Unexpected FRED response for {series_code}")
+    text = response.text.strip()
+    if not text:
+        raise ValueError(f"Empty FRED response for {series_code}")
+
+    first_line = text.splitlines()[0].strip()
+
+    # Expected shape is usually: DATE,DGS10
+    if "DATE" not in first_line or series_code not in first_line:
+        preview = "\\n".join(text.splitlines()[:5])
+        raise ValueError(
+            f"Unexpected FRED response for {series_code}. "
+            f"First line: {first_line!r}. Preview: {preview!r}"
+        )
+
+    df = pd.read_csv(io.StringIO(text))
+    df.columns = [str(c).strip() for c in df.columns]
+
+    if "DATE" not in df.columns or series_code not in df.columns:
+        raise ValueError(
+            f"Unexpected FRED columns for {series_code}: {df.columns.tolist()}"
+        )
 
     df["DATE"] = pd.to_datetime(df["DATE"], errors="coerce").dt.normalize()
     df[series_code] = pd.to_numeric(df[series_code], errors="coerce")
     df = df.dropna(subset=["DATE"])
 
-    s = pd.Series(df[series_code].values, index=df["DATE"], name=series_code)
-    return s
+    return pd.Series(df[series_code].values, index=df["DATE"], name=series_code)
 
 
 def get_fred_series_resilient(series_code: str, start_date: pd.Timestamp, end_date: pd.Timestamp) -> tuple[pd.Series, list[str]]:
