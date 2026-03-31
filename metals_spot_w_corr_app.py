@@ -3,6 +3,7 @@ import subprocess
 from pathlib import Path
 from typing import Optional
 import pickle
+import io
 
 import pandas as pd
 import plotly.graph_objects as go
@@ -10,7 +11,6 @@ import streamlit as st
 import yfinance as yf
 
 import numpy as np
-from pandas_datareader import data as pdr
 from streamlit_extras.buy_me_a_coffee import button
 
 import requests
@@ -200,11 +200,26 @@ def get_yahoo_metals_data_resilient(start_date: pd.Timestamp, end_date: pd.Times
         raise RuntimeError("Yahoo Finance pull failed and no local Yahoo cache file exists.")
         
 def fetch_fred_series_live(series_code: str, start_date: pd.Timestamp, end_date: pd.Timestamp) -> pd.Series:
-    s = pdr.DataReader(series_code, "fred", start_date, end_date)
-    if isinstance(s, pd.DataFrame):
-        s = s.iloc[:, 0]
-    s.index = pd.to_datetime(s.index).normalize()
-    return s.rename(series_code)
+    url = (
+        f"https://fred.stlouisfed.org/graph/fredgraph.csv"
+        f"?id={series_code}"
+        f"&cosd={start_date.strftime('%Y-%m-%d')}"
+        f"&coed={end_date.strftime('%Y-%m-%d')}"
+    )
+
+    response = requests.get(url, timeout=30)
+    response.raise_for_status()
+
+    df = pd.read_csv(io.StringIO(response.text))
+    if df.empty or "DATE" not in df.columns or series_code not in df.columns:
+        raise ValueError(f"Unexpected FRED response for {series_code}")
+
+    df["DATE"] = pd.to_datetime(df["DATE"], errors="coerce").dt.normalize()
+    df[series_code] = pd.to_numeric(df[series_code], errors="coerce")
+    df = df.dropna(subset=["DATE"])
+
+    s = pd.Series(df[series_code].values, index=df["DATE"], name=series_code)
+    return s
 
 
 def get_fred_series_resilient(series_code: str, start_date: pd.Timestamp, end_date: pd.Timestamp) -> tuple[pd.Series, list[str]]:
