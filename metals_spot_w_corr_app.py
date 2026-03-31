@@ -218,29 +218,25 @@ def fetch_fred_series_live(series_code: str, start_date: pd.Timestamp, end_date:
     if not text:
         raise ValueError(f"Empty FRED response for {series_code}")
 
-    first_line = text.splitlines()[0].strip()
-
-    # Expected shape is usually: DATE,DGS10
-    if "DATE" not in first_line or series_code not in first_line:
-        preview = "\\n".join(text.splitlines()[:5])
-        raise ValueError(
-            f"Unexpected FRED response for {series_code}. "
-            f"First line: {first_line!r}. Preview: {preview!r}"
-        )
-
     df = pd.read_csv(io.StringIO(text))
-    df.columns = [str(c).strip() for c in df.columns]
+    df.columns = [str(c).strip().replace("\ufeff", "") for c in df.columns]
 
-    if "DATE" not in df.columns or series_code not in df.columns:
+    date_col = None
+    for candidate in ["observation_date", "DATE", "date"]:
+        if candidate in df.columns:
+            date_col = candidate
+            break
+
+    if date_col is None or series_code not in df.columns:
         raise ValueError(
             f"Unexpected FRED columns for {series_code}: {df.columns.tolist()}"
         )
 
-    df["DATE"] = pd.to_datetime(df["DATE"], errors="coerce").dt.normalize()
+    df[date_col] = pd.to_datetime(df[date_col], errors="coerce").dt.normalize()
     df[series_code] = pd.to_numeric(df[series_code], errors="coerce")
-    df = df.dropna(subset=["DATE"])
+    df = df.dropna(subset=[date_col])
 
-    return pd.Series(df[series_code].values, index=df["DATE"], name=series_code)
+    return pd.Series(df[series_code].values, index=df[date_col], name=series_code)
 
 
 def get_fred_series_resilient(series_code: str, start_date: pd.Timestamp, end_date: pd.Timestamp) -> tuple[pd.Series, list[str]]:
@@ -312,6 +308,40 @@ def refresh_monex_json_to_file(
 
     except Exception as e:
         return False, f"Refresh failed for {output_path.name}: {e}\n"
+        
+def refresh_live_macro_cache(monex_all_df: pd.DataFrame) -> list[str]:
+    messages = []
+
+    start_date = monex_all_df["date"].min()
+    end_date = pd.Timestamp.today().normalize()
+
+    # Refresh Yahoo metals cache
+    try:
+        spot_df = fetch_yahoo_metals_live(start_date, end_date)
+        save_pickle(spot_df, CACHE_DIR / "yahoo_metals.pkl")
+        messages.append("Yahoo metals cache refreshed successfully.")
+    except Exception as e:
+        messages.append(f"Yahoo live refresh failed: {e}")
+
+    # Refresh FRED series caches
+    fred_series = [
+        "DGS10",
+        "IRLTLT01JPM156N",
+        "CPIAUCSL",
+        "UNRATE",
+        "A191RL1Q225SBEA",
+    ]
+
+    for series_code in fred_series:
+        try:
+            s = fetch_fred_series_live(series_code, start_date, end_date)
+            save_pickle(s, CACHE_DIR / f"fred_{series_code}.pkl")
+            messages.append(f"FRED cache refreshed for {series_code}.")
+        except Exception as e:
+            messages.append(f"FRED live refresh failed for {series_code}: {e}")
+
+    return messages        
+
 
 @st.cache_data(show_spinner=False)
 def load_monex_json_cached(json_path_str: str, product_key: str, mtime: float) -> pd.DataFrame:
@@ -660,10 +690,48 @@ st.write("Local data pulled as of 03/21/2026.\n")
 
 
 with st.sidebar:
+    
     st.header("Data source options")
 
     run_curl = st.button("Refresh Monex JSON files", use_container_width=True)
     uploaded_file = st.file_uploader("Or upload matching Monex JSON", type=["json"])
+
+    st.markdown("---")
+    st.subheader("Manual Monex token refresh")
+    st.caption(
+        "Paste bearer tokens below if you want to refresh Monex JSON files manually. "
+        "If left blank, the app will use local cached JSON files."
+    )
+
+    with st.expander("How to find the bearer token"):
+        st.markdown(
+            "1. Click the relevant Monex link in the references section.\n"
+            "2. Press **F12** to open Developer Tools.\n"
+            "3. Open the **Network** tab.\n"
+            "4. Reload the page if needed.\n"
+            "5. Look for the request named **history**.\n"
+            "6. Right-click it and copy the cURL request.\n"
+            "7. Paste it into a text editor.\n"
+            "8. Copy the value after **Authorization: Bearer**."
+        )
+
+    token_inputs = {
+        "junk_90_silver": st.text_input("Bearer token: 90% Silver U.S. Coin Bag", type="password"),
+        "silver_eagles": st.text_input("Bearer token: Silver American Eagles", type="password"),
+        "gold_eagles": st.text_input("Bearer token: Gold American Eagles", type="password"),
+        "silver_1000oz": st.text_input("Bearer token: 1000 oz Silver Bullion", type="password"),
+        "gold_1kg": st.text_input("Bearer token: 1 Kilo Gold Bullion Bar", type="password"),
+        "gold_10oz": st.text_input("Bearer token: 10 oz Gold Bullion Bar", type="password"),
+        "silver_10oz": st.text_input("Bearer token: 10 oz Silver Bullion Bar", type="password"),
+    }
+    
+    run_refresh = st.button("Refresh Monex JSON files")
+    
+    st.markdown("---")
+    st.subheader("Manual data refresh")
+
+    run_monex_refresh = st.button("Refresh Monex JSON files")
+    run_macro_refresh = st.button("Refresh live Yahoo + FRED cache")
 
     st.markdown("---")
     show_open = st.checkbox("Show bag open $/oz", value=False)
@@ -743,6 +811,31 @@ if run_curl:
     st.cache_data.clear()
     status_placeholder.info("\n".join(refresh_messages))
 
+if run_refresh:
+    refresh_messages = []
+
+    for key, meta in MONEX_PRODUCTS.items():
+        bearer_token = token_inputs.get(key, "").strip()
+
+        if not bearer_token:
+            refresh_messages.append(f"Skipped {meta['label']} (no token provided).")
+            continue
+
+        ok, msg = refresh_monex_json_to_file(
+            output_path=Path(meta["json_file"]),
+            symbol=meta["symbol"],
+            referer_symbol=meta["referer_symbol"],
+            bearer_token=bearer_token,
+        )
+        refresh_messages.append(msg)
+
+    st.cache_data.clear()
+    status_placeholder.info("\n".join(refresh_messages))
+
+if run_macro_refresh:
+    macro_refresh_messages = refresh_live_macro_cache(monex_all_df)
+    st.cache_data.clear()
+    status_placeholder.info("\n".join(macro_refresh_messages))
 
 all_monex_frames = []
 
