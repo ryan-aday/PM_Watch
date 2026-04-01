@@ -315,15 +315,14 @@ def refresh_live_macro_cache(monex_all_df: pd.DataFrame) -> list[str]:
     start_date = monex_all_df["date"].min()
     end_date = pd.Timestamp.today().normalize()
 
-    # Refresh Yahoo metals cache
+    # Yahoo metals: resilient = live first, cached fallback
     try:
-        spot_df = fetch_yahoo_metals_live(start_date, end_date)
-        save_pickle(spot_df, CACHE_DIR / "yahoo_metals.pkl")
-        messages.append("Yahoo metals cache refreshed successfully.")
+        spot_df, yahoo_messages = get_yahoo_metals_data_resilient(start_date, end_date)
+        messages.extend(yahoo_messages)
     except Exception as e:
-        messages.append(f"Yahoo live refresh failed: {e}")
+        messages.append(f"Yahoo refresh failed and no cache was available: {e}")
 
-    # Refresh FRED series caches
+    # FRED macro series: resilient = live first, cached fallback
     fred_series = [
         "DGS10",
         "IRLTLT01JPM156N",
@@ -334,13 +333,12 @@ def refresh_live_macro_cache(monex_all_df: pd.DataFrame) -> list[str]:
 
     for series_code in fred_series:
         try:
-            s = fetch_fred_series_live(series_code, start_date, end_date)
-            save_pickle(s, CACHE_DIR / f"fred_{series_code}.pkl")
-            messages.append(f"FRED cache refreshed for {series_code}.")
+            _, fred_messages = get_fred_series_resilient(series_code, start_date, end_date)
+            messages.extend(fred_messages)
         except Exception as e:
-            messages.append(f"FRED live refresh failed for {series_code}: {e}")
+            messages.append(f"FRED refresh failed for {series_code} and no cache was available: {e}")
 
-    return messages        
+    return messages
 
 
 @st.cache_data(show_spinner=False)
