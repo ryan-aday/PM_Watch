@@ -763,7 +763,9 @@ with st.sidebar:
             key="token_silver_10oz",
         ),
     }
-        
+    
+    run_refresh = st.button("Refresh Monex JSON files using manual token input")
+    
     st.markdown("---")
     st.subheader("Manual data refresh")
 
