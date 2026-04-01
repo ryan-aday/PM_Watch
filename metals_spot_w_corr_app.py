@@ -854,7 +854,7 @@ if run_refresh:
     refresh_messages = []
 
     for key, meta in MONEX_PRODUCTS.items():
-        bearer_token = monex_tokens.get(key, "").strip()
+        bearer_token = token_inputs.get(key, "").strip()
 
         if not bearer_token:
             refresh_messages.append(f"Skipped {meta['label']} (no token provided).")
