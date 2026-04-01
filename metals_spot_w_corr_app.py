@@ -878,12 +878,6 @@ if run_refresh:
     status_placeholder.info("\n".join(refresh_messages))
     
 
-
-if run_macro_refresh:
-    macro_refresh_messages = refresh_live_macro_cache(monex_all_df)
-    st.cache_data.clear()
-    status_placeholder.info("\n".join(macro_refresh_messages))
-
 all_monex_frames = []
 
 for key, meta in MONEX_PRODUCTS.items():
@@ -911,6 +905,12 @@ if not file_specs:
     st.stop()
 
 monex_all_df = build_monex_all_df(tuple(file_specs))    
+
+
+if run_macro_refresh:
+    macro_refresh_messages = refresh_live_macro_cache(monex_all_df)
+    st.cache_data.clear()
+    status_placeholder.info("\n".join(macro_refresh_messages))
 
 
 # -----------------------------
