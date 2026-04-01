@@ -720,7 +720,7 @@ with st.sidebar:
         )
 
     token_inputs = {
- "junk_90_silver": st.text_input(
+        "junk_90_silver": st.text_input(
             "Bearer token: 90% Silver U.S. Coin Bag",
             value=secret_or_blank("JUNK_90_SILVER_BEARER_TOKEN"),
             type="password",
@@ -763,9 +763,7 @@ with st.sidebar:
             key="token_silver_10oz",
         ),
     }
-    
-    run_refresh = st.button("Refresh Monex JSON files")
-    
+        
     st.markdown("---")
     st.subheader("Manual data refresh")
 
