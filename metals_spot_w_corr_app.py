@@ -854,10 +854,10 @@ if run_refresh:
     refresh_messages = []
 
     for key, meta in MONEX_PRODUCTS.items():
-        bearer_token = token_inputs.get(key, "").strip()
+        bearer_token = monex_tokens.get(key, "").strip()
 
         if not bearer_token:
-            refresh_messages.append(f"Skipped {meta['label']} (no token provided).")
+            refresh_messages.append(f"Skipped {meta['label']} (no token provided). Using cached local JSON if available.")
             continue
 
         ok, msg = refresh_monex_json_to_file(
@@ -866,7 +866,13 @@ if run_refresh:
             referer_symbol=meta["referer_symbol"],
             bearer_token=bearer_token,
         )
-        refresh_messages.append(msg)
+
+        if ok:
+            refresh_messages.append(msg)
+        else:
+            refresh_messages.append(
+                f"{msg} Falling back to cached local JSON for {meta['label']} if available."
+            )
 
     st.cache_data.clear()
     status_placeholder.info("\n".join(refresh_messages))
