@@ -675,7 +675,11 @@ def make_corr_heatmap(df: pd.DataFrame) -> go.Figure:
     )
     return fig
 
-
+def secret_or_blank(name: str) -> str:
+    try:
+        return st.secrets.get(name, "")
+    except Exception:
+        return ""
 
 # -----------------------------
 # UI
@@ -716,45 +720,45 @@ with st.sidebar:
         )
 
     token_inputs = {
-        "junk_90_silver": st.text_input(
+ "junk_90_silver": st.text_input(
             "Bearer token: 90% Silver U.S. Coin Bag",
-            value="PROXY_JUNK_90_SILVER_BEARER_TOKEN",
+            value=secret_or_blank("JUNK_90_SILVER_BEARER_TOKEN"),
             type="password",
             key="token_junk_90_silver",
         ),
         "silver_eagles": st.text_input(
             "Bearer token: Silver American Eagles",
-            value="PROXY_SILVER_EAGLES_BEARER_TOKEN",
+            value=secret_or_blank("SILVER_EAGLES_BEARER_TOKEN"),
             type="password",
             key="token_silver_eagles",
         ),
         "gold_eagles": st.text_input(
             "Bearer token: Gold American Eagles",
-            value="PROXY_GOLD_EAGLES_BEARER_TOKEN",
+            value=secret_or_blank("GOLD_EAGLES_BEARER_TOKEN"),
             type="password",
             key="token_gold_eagles",
         ),
         "silver_1000oz": st.text_input(
             "Bearer token: 1000 oz Silver Bullion",
-            value="PROXY_SILVER_1000_OZ_BEARER_TOKEN",
+            value=secret_or_blank("SILVER_1000_OZ_BEARER_TOKEN"),
             type="password",
             key="token_silver_1000oz",
         ),
         "gold_1kg": st.text_input(
             "Bearer token: 1 Kilo Gold Bullion Bar",
-            value="PROXY_GOLD_1_KG_BEARER_TOKEN",
+            value=secret_or_blank("GOLD_1_KG_BEARER_TOKEN"),
             type="password",
             key="token_gold_1kg",
         ),
         "gold_10oz": st.text_input(
             "Bearer token: 10 oz Gold Bullion Bar",
-            value="PROXY_GOLD_10_OZ_BEARER_TOKEN",
+            value=secret_or_blank("GOLD_10_OZ_BEARER_TOKEN"),
             type="password",
             key="token_gold_10oz",
         ),
         "silver_10oz": st.text_input(
             "Bearer token: 10 oz Silver Bullion Bar",
-            value="PROXY_SILVER_10_OZ_BEARER_TOKEN",
+            value=secret_or_blank("SILVER_10_OZ_BEARER_TOKEN"),
             type="password",
             key="token_silver_10oz",
         ),
@@ -850,7 +854,7 @@ if run_refresh:
     refresh_messages = []
 
     for key, meta in MONEX_PRODUCTS.items():
-        bearer_token = token_inputs.get(key, "").strip()
+        bearer_token = monex_tokens.get(key, "").strip()
 
         if not bearer_token:
             refresh_messages.append(f"Skipped {meta['label']} (no token provided).")
@@ -866,6 +870,8 @@ if run_refresh:
 
     st.cache_data.clear()
     status_placeholder.info("\n".join(refresh_messages))
+    
+
 
 if run_macro_refresh:
     macro_refresh_messages = refresh_live_macro_cache(monex_all_df)
