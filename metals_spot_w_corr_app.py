@@ -767,7 +767,6 @@ with st.sidebar:
     st.markdown("---")
     st.subheader("Manual data refresh")
 
-    run_monex_refresh = st.button("Refresh Monex JSON files")
     run_macro_refresh = st.button("Refresh live Yahoo + FRED cache")
 
     st.markdown("---")
@@ -852,7 +851,7 @@ if run_refresh:
     refresh_messages = []
 
     for key, meta in MONEX_PRODUCTS.items():
-        bearer_token = monex_tokens.get(key, "").strip()
+        bearer_token = token_inputs.get(key, "").strip()
 
         if not bearer_token:
             refresh_messages.append(f"Skipped {meta['label']} (no token provided). Using cached local JSON if available.")
