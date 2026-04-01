@@ -716,13 +716,48 @@ with st.sidebar:
         )
 
     token_inputs = {
-        "junk_90_silver": st.text_input("Bearer token: 90% Silver U.S. Coin Bag", type="password"),
-        "silver_eagles": st.text_input("Bearer token: Silver American Eagles", type="password"),
-        "gold_eagles": st.text_input("Bearer token: Gold American Eagles", type="password"),
-        "silver_1000oz": st.text_input("Bearer token: 1000 oz Silver Bullion", type="password"),
-        "gold_1kg": st.text_input("Bearer token: 1 Kilo Gold Bullion Bar", type="password"),
-        "gold_10oz": st.text_input("Bearer token: 10 oz Gold Bullion Bar", type="password"),
-        "silver_10oz": st.text_input("Bearer token: 10 oz Silver Bullion Bar", type="password"),
+        "junk_90_silver": st.text_input(
+            "Bearer token: 90% Silver U.S. Coin Bag",
+            value=secret_or_blank("JUNK_90_SILVER_BEARER_TOKEN"),
+            type="password",
+            key="token_junk_90_silver",
+        ),
+        "silver_eagles": st.text_input(
+            "Bearer token: Silver American Eagles",
+            value=secret_or_blank("SILVER_EAGLES_BEARER_TOKEN"),
+            type="password",
+            key="token_silver_eagles",
+        ),
+        "gold_eagles": st.text_input(
+            "Bearer token: Gold American Eagles",
+            value=secret_or_blank("GOLD_EAGLES_BEARER_TOKEN"),
+            type="password",
+            key="token_gold_eagles",
+        ),
+        "silver_1000oz": st.text_input(
+            "Bearer token: 1000 oz Silver Bullion",
+            value=secret_or_blank("SILVER_1000_OZ_BEARER_TOKEN"),
+            type="password",
+            key="token_silver_1000oz",
+        ),
+        "gold_1kg": st.text_input(
+            "Bearer token: 1 Kilo Gold Bullion Bar",
+            value=secret_or_blank("GOLD_1_KG_BEARER_TOKEN"),
+            type="password",
+            key="token_gold_1kg",
+        ),
+        "gold_10oz": st.text_input(
+            "Bearer token: 10 oz Gold Bullion Bar",
+            value=secret_or_blank("GOLD_10_OZ_BEARER_TOKEN"),
+            type="password",
+            key="token_gold_10oz",
+        ),
+        "silver_10oz": st.text_input(
+            "Bearer token: 10 oz Silver Bullion Bar",
+            value=secret_or_blank("SILVER_10_OZ_BEARER_TOKEN"),
+            type="password",
+            key="token_silver_10oz",
+        ),
     }
     
     run_refresh = st.button("Refresh Monex JSON files")
