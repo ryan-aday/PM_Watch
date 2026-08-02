@@ -5,3 +5,4 @@ numpy>=1.24
 requests>=2.31
 pandas-datareader
 yfinance>=0.2.54
+playwright>=1.50
