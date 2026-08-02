@@ -3,5 +3,3 @@ secrets.toml
 *.monex.curl.txt
 .monex_captures/
 .monex_browser_profile/
-monex_config.json
-.streamlit/secrets.toml.tmp
