@@ -1,3 +1,5 @@
 secrets.toml
 *.curl.txt
 *.monex.curl.txt
+.monex_captures/
+.monex_browser_profile/
