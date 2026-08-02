@@ -1,0 +1,16 @@
+{
+  "common": {
+    "client_id": "a0fa8f6f-0b7b-4d1a-bb3f-045d29d8aee5",
+    "instance": "59155a1a-4c2d-44c1-9ae2-1b083713b0d5",
+    "cookie": ""
+  },
+  "bearer_tokens": {
+    "junk_90_silver": "",
+    "silver_eagles": "",
+    "gold_eagles": "",
+    "silver_1000oz": "",
+    "gold_1kg": "",
+    "gold_10oz": "",
+    "silver_10oz": ""
+  }
+}
