@@ -14,30 +14,72 @@ sys.modules[SPEC.name] = MODULE
 SPEC.loader.exec_module(MODULE)
 
 
-class CaptureMonexHistoryTests(unittest.TestCase):
-    def test_parse_windows_multiline_curl(self):
-        command = r'''curl "https://widget.nfusionsolutions.com/api/v1/Data/history" ^
-  -H "Authorization: Bearer abc.def-123" ^
-  -H "Cookie: session=secret" ^
-  -H "Content-Type: application/x-www-form-urlencoded; charset=UTF-8" ^
-  --data-raw "clientId=client&instance=instance&symbols=sc&timeframeType=year"'''
-        parsed = MODULE.parse_curl(command)
-        self.assertEqual(parsed.url, MODULE.HISTORY_URL)
-        self.assertEqual(parsed.headers["Authorization"], "Bearer abc.def-123")
-        self.assertEqual(parsed.headers["Cookie"], "session=secret")
-        self.assertEqual(parsed.data["symbols"], "sc")
+class FakeRequest:
+    def __init__(self, url, method="POST", post_data=""):
+        self.url = url
+        self.method = method
+        self.post_data = post_data
 
-    def test_request_rewrites_symbol_and_referer(self):
-        template = MODULE.CurlRequest(
-            url=MODULE.HISTORY_URL,
-            headers={"Authorization": "Bearer token", "Cookie": "x=y"},
-            data={"symbols": "sc", "timeframeType": "year"},
-        )
+
+class CaptureMonexHistoryTests(unittest.TestCase):
+    def test_matches_page_specific_history_request(self):
         product = MODULE.PRODUCT_BY_KEY["gold_eagles"]
-        request = MODULE.request_for_product(template, product, None)
-        self.assertEqual(request.data["symbols"], "ae")
-        self.assertEqual(request.headers["Referer"], product.widget_url)
-        self.assertEqual(request.data["timeframeType"], "year")
+        request = FakeRequest(
+            "https://widget.nfusionsolutions.com/api/v1/Data/history",
+            post_data="clientId=x&instance=page-specific&symbols=ae&timeframeType=year",
+        )
+        self.assertTrue(MODULE.is_history_request(request, product))
+
+    def test_rejects_other_symbol_and_non_history_request(self):
+        product = MODULE.PRODUCT_BY_KEY["silver_eagles"]
+        wrong_symbol = FakeRequest(
+            "https://widget.nfusionsolutions.com/api/v1/Data/history",
+            post_data="symbols=ae",
+        )
+        wrong_path = FakeRequest(
+            "https://widget.nfusionsolutions.com/api/v1/Data/spot",
+            post_data="symbols=saei",
+        )
+        self.assertFalse(MODULE.is_history_request(wrong_symbol, product))
+        self.assertFalse(MODULE.is_history_request(wrong_path, product))
+
+    def test_powershell_curl_contains_complete_request(self):
+        command = MODULE.format_curl_powershell(
+            method="POST",
+            url="https://widget.nfusionsolutions.com/api/v1/Data/history",
+            headers={
+                "authorization": "Bearer abc.def",
+                "cookie": "session=x&other=y",
+                "content-length": "999",
+            },
+            post_data="symbols=sc&timeframeType=year",
+        )
+        self.assertIn("authorization", command.lower())
+        self.assertIn("Bearer abc.def", command)
+        self.assertIn("session=x&other=y", command)
+        self.assertIn("symbols=sc&timeframeType=year", command)
+        self.assertNotIn("content-length", command.lower())
+
+    def test_source_auto_uses_product_then_widget(self):
+        product = MODULE.PRODUCT_BY_KEY["silver_10oz"]
+        urls = MODULE.source_urls(product, "auto")
+        self.assertEqual(urls[0], product.page_url)
+        self.assertEqual(urls[1], product.fallback_widget_url)
+
+    def test_extracts_page_specific_widget_url(self):
+        product = MODULE.PRODUCT_BY_KEY["gold_1kg"]
+        html = (
+            '<script src="https://widget.nfusionsolutions.com/custom/monex/'
+            'script/chart/1/client/page-instance?symbols=GBX1K&amp;currency=USD"></script>'
+        )
+        urls = MODULE.extract_widget_urls_from_html(html, product)
+        self.assertEqual(
+            urls,
+            [
+                "https://widget.nfusionsolutions.com/custom/monex/chart/1/"
+                "client/page-instance?symbols=GBX1K&currency=USD"
+            ],
+        )
 
     def test_validate_and_atomic_write(self):
         product = MODULE.PRODUCT_BY_KEY["silver_eagles"]
