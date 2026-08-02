@@ -1,62 +1,57 @@
-# Monex initial-history capture helper
+# Automated Monex page capture
 
-`capture_monex_history.py` creates the seven `history_*.json` files used by
-`metals_spot_w_corr_app.py`.
+`capture_monex_history.py` automates the browser steps that previously required
+F12, Network, finding `history`, and **Copy as cURL**.
 
-## Recommended: paste the complete copied cURL
+For every selected product, it:
 
-1. Open one of the Monex/nFusion widget links in the app's **Data references** section.
-2. Press **F12**, open **Network**, reload the page, and select the request named **history**.
-3. Right-click the request and choose **Copy as cURL**.
-4. Paste it into a temporary file, for example `monex_history.curl.txt`.
-5. From the PM_Watch repository root, run:
+1. opens the public Monex product page in Chromium;
+2. watches network traffic from the page and embedded chart frames;
+3. finds that product's POST to `api/v1/Data/history`;
+4. records the exact request as PowerShell and Bash cURL files; and
+5. validates and writes the returned `history_*.json` file.
 
-```bash
-python scripts/capture_monex_history.py --curl-file monex_history.curl.txt --product all
+The `auto` source mode tries the actual Monex product page first. If the chart is
+not loaded there, it extracts the page's current nFusion chart instance when
+possible and then falls back to the known direct widget URL.
+
+## Install
+
+From the PM_Watch repository root:
+
+```powershell
+python -m pip install -r scripts/requirements.txt
+python -m playwright install chromium
 ```
 
-The complete-cURL method is preferred because it captures the bearer token,
-cookie, client ID, instance ID, and request body together. The helper changes
-the symbol and referer for each configured product, validates the returned JSON,
-and only then replaces the corresponding local file.
+The browser binary installation is a one-time step.
 
-Delete `monex_history.curl.txt` after the run. It contains live credentials and
-must not be committed or shared.
+## Capture all seven products
 
-## Token-only compatibility mode
-
-To follow the app's existing instructions and paste only the value after
-`Authorization: Bearer`, run:
-
-```bash
+```powershell
 python scripts/capture_monex_history.py --product all
 ```
 
-The token prompt is hidden. If the endpoint rejects token-only mode, use the
-complete-cURL method so the request cookie is included.
+A visible browser is used by default because it is less likely to be blocked and
+lets you complete a browser challenge if one appears. The helper continues
+capturing automatically; Developer Tools are not needed.
 
-You may capture a single product when a credential is symbol-specific:
+For unattended operation after confirming it works locally:
 
-```bash
-python scripts/capture_monex_history.py \
-  --curl-file silver_eagles.monex.curl.txt \
-  --product silver_eagles
+```powershell
+python scripts/capture_monex_history.py --product all --headless
 ```
 
-Available product keys:
+To use an already installed Chrome or Edge instead of Playwright Chromium:
 
-- `junk_90_silver`
-- `silver_eagles`
-- `gold_eagles`
-- `silver_1000oz`
-- `gold_1kg`
-- `gold_10oz`
-- `silver_10oz`
-- `all`
+```powershell
+python scripts/capture_monex_history.py --product all --browser chrome
+python scripts/capture_monex_history.py --product all --browser msedge
+```
 
-## Output files
+## Outputs
 
-The script writes these files to the current directory by default:
+The normal PM_Watch data files are written to the repository root:
 
 - `history_90_percent_silver.json`
 - `history_silver_eagles.json`
@@ -66,11 +61,32 @@ The script writes these files to the current directory by default:
 - `history_10oz_gold.json`
 - `history_10oz_silver.json`
 
-Use `--output-dir PATH` to write elsewhere. Run
-`python scripts/capture_monex_history.py --help` for all options.
+Page-specific request captures are written under `.monex_captures/`:
+
+- `<product>.curl.ps1` — PowerShell-compatible `curl.exe` command
+- `<product>.curl.sh` — Bash/Git Bash/WSL-compatible command
+- `manifest.json` — non-secret capture metadata
+
+The cURL files include short-lived Authorization and Cookie headers. The capture
+folder and persistent browser profile are gitignored. Do not share the cURL
+files while their credentials may still be active.
+
+Use `--no-json` to collect cURLs without replacing the app data files.
+
+## Product-page fallback controls
+
+```powershell
+# Only inspect the actual public Monex product pages
+python scripts/capture_monex_history.py --product all --source product
+
+# Only inspect the direct nFusion widget pages
+python scripts/capture_monex_history.py --product all --source widget
+```
 
 ## Validation
 
-```bash
+The unit tests do not require a browser installation:
+
+```powershell
 python -m unittest discover -s tests -p "test_capture_monex_history.py"
 ```
