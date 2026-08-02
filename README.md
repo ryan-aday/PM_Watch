@@ -1,21 +1,15 @@
 # Silver Watch — Monex vs Spot Metals Dashboard
 
-A Streamlit dashboard for comparing multiple **Monex retail precious-metals products** against **Yahoo Finance metals spot proxies**, with optional **FRED macro overlays** and a **dynamic correlation heatmap**.
+A Streamlit dashboard for comparing Monex physical precious-metals products with Yahoo Finance silver and gold futures proxies, with FRED macro overlays and dynamic correlation analysis.
 
-The app is designed to:
+The repository includes historical Monex JSON files so the dashboard remains usable when live authentication is unavailable. Users can refresh those files in either of two ways:
 
-- refresh Monex product-history JSON files from the nFusion widget endpoint when possible
-- fall back to local JSON files when refresh fails
-- normalize Monex products to **price per troy ounce**
-- compare each product against the appropriate spot proxy
-- calculate spreads and premium/discount percentages versus spot
-- overlay macro series and recalculate correlations over a selected timeframe
+1. manually paste bearer tokens captured from browser Developer Tools; or
+2. run the Playwright browser helper from the Streamlit sidebar or command line.
 
----
+The automated helper validates each response before replacing its corresponding historical JSON file. A failed product therefore keeps its previous local history.
 
-## What the app does
-
-The dashboard loads historical data for multiple Monex products, including:
+## Products tracked
 
 - 90% Silver U.S. Coin Bag
 - Silver American Eagles
@@ -25,346 +19,295 @@ The dashboard loads historical data for multiple Monex products, including:
 - 10 oz Gold Bullion Bar
 - 10 oz Silver Bullion Bar
 
-It then compares those products against:
-
-- **Silver spot proxy** from Yahoo Finance: `SI=F`
-- **Gold spot proxy** from Yahoo Finance: `GC=F`
-
-The app includes:
-
-### 1. Monex Products vs Spot
-Plots selected Monex products on a **per-ounce basis** and overlays the relevant silver and/or gold spot-proxy series.
-
-### 2. Monex Product Premium / Discount vs Spot
-Plots each selected product’s spread versus its reference spot price, either as:
-
-- absolute difference (`$/oz`)
-- premium / discount (`%`)
-
-### 3. Macro Overlay
-Overlays selected macro series from FRED over the same selected timeframe.
-
-### 4. Dynamic Correlation Heatmap
-Recalculates correlations based on the currently selected date window and selected products.
-
----
-
-## Product normalization to price per ounce
-
-Monex JSON values are converted into **implied price per troy ounce** using product-specific ounce assumptions.
-
-Examples:
-
-- **90% Silver U.S. Coin Bag**  
-  Assumes `$1 face value = 0.715 troy oz silver`, so a `$1000 face bag = 715 troy oz`
-
-- **1000 oz Silver Bullion**  
-  Uses `1000 oz`
-
-- **10 oz bars**  
-  Uses `10 oz`
-
-- **1 kilo gold bar**  
-  Uses `32.1507466 troy oz`
-
-The app stores each product’s `ounces_per_unit` in the product registry and computes:
-
-\[
-\text{price per oz} = \frac{\text{product price}}{\text{ounces per unit}}
-\]
-
----
-
-## Premium / discount calculation
-
-For each Monex product, the app calculates:
-
-- **absolute spread**
-- **premium / discount percent**
-
-The premium / discount formula is:
-
-\[
-\left(\frac{\text{product price per oz}}{\text{reference spot price per oz}} - 1\right) \times 100
-\]
-
-Interpretation:
-
-- `0%` = at spot
-- positive value = premium to spot
-- negative value = discount to spot
-
----
-
-## Spot references used
-
-The app matches each Monex product to the appropriate Yahoo Finance spot proxy:
-
-- **Silver products** → `SI=F`
-- **Gold products** → `GC=F`
-
-The app can also compute the **gold/silver ratio** when both spot series are available.
-
----
-
-## Macro data included
-
-The dashboard can overlay and correlate against the following FRED series:
-
-- **U.S. 10Y Treasury yield** — `DGS10`
-- **Japan 10Y government bond yield** — `IRLTLT01JPM156N`
-- **U.S. CPI for All Urban Consumers** — `CPIAUCSL`
-  - converted to **YoY CPI inflation**
-- **U.S. unemployment rate** — `UNRATE`
-- **U.S. real GDP growth, percent change SAAR** — `A191RL1Q225SBEA`
-
-### Frequency handling
-
-Because these macro series have mixed frequencies, the app expands them onto a daily index for comparison:
-
-- **daily series** → forward-filled where appropriate
-- **monthly series** → same value used for every day in the represented month
-- **quarterly series** → same value used for every day in the represented quarter
-
----
+Silver products are compared with Yahoo Finance `SI=F`; gold products are compared with `GC=F`.
 
 ## Main features
 
-- Multiple Monex products handled through a shared product registry
-- Per-product local JSON fallback support
-- Optional Windows `curl.exe` refresh for Monex JSON files
-- Per-ounce normalization by product
-- Product-minus-spot spread calculations
-- Dynamic date-range filtering
-- Multi-product selection
-- Macro overlay chart
+- Multiple Monex products through a shared product registry
+- Historical local JSON fallback
+- Manual bearer-token refresh from the main dashboard sidebar
+- Automated page-specific cURL and JSON capture through Playwright
+- Per-ounce normalization
+- Absolute and percentage premiums or discounts to spot
+- Synchronized date filtering
+- Yahoo and FRED caching
+- U.S. and Japanese yield, CPI, unemployment, and GDP overlays
 - Dynamic correlation heatmap
-- CSV download of the current filtered view
-- Cached Monex, Yahoo, and macro data for faster reruns
-
----
-
-## Project structure
-
-Example layout:
-
-```text
-your_project/
-├─ metals_spot_w_corr_app.py
-├─ history_90_percent_silver.json
-├─ history_silver_eagles.json
-├─ history_gold_eagles.json
-├─ history_1000oz_silver.json
-├─ history_1kg_gold.json
-├─ history_10oz_gold.json
-├─ history_10oz_silver.json
-├─ cache/
-│  ├─ yahoo_metals.pkl
-│  ├─ fred_DGS10.pkl
-│  ├─ fred_IRLTLT01JPM156N.pkl
-│  ├─ fred_CPIAUCSL.pkl
-│  ├─ fred_UNRATE.pkl
-│  └─ fred_A191RL1Q225SBEA.pkl
-├─ README_Silver_Watch_v2.md
-└─ requirements.txt
-```
-
-Recommended local Monex JSON filenames:
-
-- `history_90_percent_silver.json`
-- `history_silver_eagles.json`
-- `history_gold_eagles.json`
-- `history_1000oz_silver.json`
-- `history_1kg_gold.json`
-- `history_10oz_gold.json`
-- `history_10oz_silver.json`
-
----
+- CSV export of the filtered view
 
 ## Installation
 
 ### 1. Create and activate a virtual environment
 
-Windows:
+Windows PowerShell:
 
-```bash
+```powershell
 python -m venv venv
-venv\Scripts\activate
+venv\Scripts\Activate.ps1
 ```
 
-macOS / Linux:
+Windows Command Prompt:
+
+```bat
+python -m venv venv
+venv\Scripts\activate.bat
+```
+
+macOS or Linux:
 
 ```bash
 python3 -m venv venv
 source venv/bin/activate
 ```
 
-### 2. Install dependencies
+### 2. Install all Python dependencies
+
+The project uses one consolidated dependency file:
 
 ```bash
-pip install streamlit streamlit-extras pandas plotly yfinance pandas_datareader
+python -m pip install -r requirements.txt
 ```
 
-Example `requirements.txt`:
+### 3. Install the Playwright Chromium browser
 
-```text
-streamlit
-pandas
-plotly
-yfinance
-pandas_datareader
+The Python package and the browser binary are separate installations. This command is required before using the automated Monex refresh:
+
+```bash
+python -m playwright install chromium
 ```
 
----
+On some Linux systems, Playwright may also require operating-system packages:
+
+```bash
+python -m playwright install --with-deps chromium
+```
 
 ## Running the app
+
+From the repository root:
 
 ```bash
 streamlit run metals_spot_w_corr_app.py
 ```
 
-Then open the local Streamlit URL shown in the terminal.
+Streamlit automatically exposes two pages in its sidebar navigation:
 
----
+- the main precious-metals dashboard; and
+- **Automated Monex Refresh**.
 
-## Monex refresh behavior
+## Historical-data behavior
 
-The app can attempt to refresh local Monex JSON files using saved Windows `curl.exe` parameters captured from the Monex/nFusion widget requests.
+The checked-in `history_*.json` files are the baseline data source. The app loads these files whenever a live refresh is not requested or does not succeed.
 
-When refresh succeeds, files such as these are updated:
+Files used by the app:
 
-- `history_90_percent_silver.json`
-- `history_silver_eagles.json`
-- `history_gold_eagles.json`
-- `history_1000oz_silver.json`
-- `history_1kg_gold.json`
-- `history_10oz_gold.json`
-- `history_10oz_silver.json`
-
-### Important note
-
-The Monex refresh flow depends on saved **bearer tokens** captured from the widget calls. Those tokens may expire over time.
-
-That is why the app also supports:
-
-- local JSON fallback files
-- cached previously refreshed files
-
----
-
-## Yahoo and FRED caching behavior
-
-To make the app more resilient:
-
-- Yahoo metals pulls can be cached to a local file
-- FRED macro series can be cached to local files
-- cached files can be used when live pulls fail
-- warnings can be shown when the app falls back to cached data
-
-This helps avoid empty charts when a provider is temporarily unavailable.
-
----
-
-## Expected Monex JSON shape
-
-The Monex / nFusion history files are expected to look like:
-
-```json
-[
-  {
-    "symbol": "SC",
-    "name": "90% Silver Bullion Bar",
-    "baseCurrency": "USD",
-    "intervals": [
-      {
-        "start": "2022-09-21T00:00:00",
-        "end": "2022-09-21T23:59:59.999+00:00",
-        "open": 23.05,
-        "high": 23.22,
-        "low": 22.79,
-        "last": 23.01,
-        "change": -0.15,
-        "changePercent": -0.6519
-      }
-    ]
-  }
-]
+```text
+history_90_percent_silver.json
+history_silver_eagles.json
+history_gold_eagles.json
+history_1000oz_silver.json
+history_1kg_gold.json
+history_10oz_gold.json
+history_10oz_silver.json
 ```
 
-The app uses interval fields such as:
+A refresh never deletes the entire historical dataset first. Each product file is replaced only after the returned JSON is non-empty, contains intervals, and matches the expected product symbol.
 
-- `start`
-- `end`
-- `open`
-- `high`
-- `low`
-- `last`
-- `change`
-- `changePercent`
+## Manual Monex refresh
 
----
+The original manual workflow remains available in the main dashboard sidebar.
 
-## Sidebar / UI behavior
+For each relevant product:
 
-### Sidebar
-The sidebar includes:
+1. Open the Monex product or nFusion widget link under **Data references**.
+2. Press **F12** to open Developer Tools.
+3. Select the **Network** tab.
+4. Reload the page if necessary.
+5. Find the request named **history**.
+6. Right-click it and choose **Copy as cURL**.
+7. Paste the command into a temporary text editor.
+8. Copy the value after `Authorization: Bearer`.
+9. Paste that value into the matching password field in the dashboard sidebar.
+10. Select **Refresh Monex JSON files using manual token input**.
 
-- product selection
-- plot display toggles
-- refresh controls
-- source/reference links
+Tokens can expire. If a token or cookie is rejected, the previous local JSON file remains available.
 
-### Main page
-The main page includes:
+The manual request path also uses the common client ID, widget instance, and cookie values configured through Streamlit secrets. A local `.streamlit/secrets.toml` can contain values such as:
 
-- synchronized date-range controls
-- summary metrics
-- latest row details
-- price comparison chart
-- spread / premium chart
-- macro chart
-- correlation heatmap
-- data preview
-- CSV download
+```toml
+COMMON_CLIENT_ID = "..."
+COMMON_INSTANCE = "..."
+COMMON_COOKIE = "..."
 
----
+JUNK_90_SILVER_BEARER_TOKEN = ""
+SILVER_EAGLES_BEARER_TOKEN = ""
+GOLD_EAGLES_BEARER_TOKEN = ""
+SILVER_1000_OZ_BEARER_TOKEN = ""
+GOLD_1_KG_BEARER_TOKEN = ""
+GOLD_10_OZ_BEARER_TOKEN = ""
+SILVER_10_OZ_BEARER_TOKEN = ""
+```
 
-## Performance notes
+Do not commit active tokens, cookies, browser profiles, or captured cURL files.
 
-The app is optimized by caching:
+## Automated Monex refresh from Streamlit
 
-- parsed Monex JSON data
-- concatenated Monex dataframes
-- Yahoo metals downloads
-- FRED macro data
-- fully merged datasets
+Open **Automated Monex Refresh** from the Streamlit sidebar.
 
-This keeps slider/date adjustments much faster by avoiding unnecessary reloading and reparsing on each rerun.
+The page checks whether both Playwright and its Chromium browser are installed. When ready, select:
 
----
+```text
+Update all Monex JSON files
+```
 
-## Known behaviors and limitations
+The browser helper then:
 
-- Some Monex products start later than others.  
-  Example: a specific product may only begin in 2022, so it will not appear earlier in the selected window.
+1. opens each of the seven Monex product pages;
+2. watches network activity from the page and embedded chart frames;
+3. identifies that product's authenticated `POST /api/v1/Data/history` request;
+4. captures the exact request as PowerShell and Bash cURL files;
+5. validates the returned JSON; and
+6. atomically replaces the matching `history_*.json` file.
 
-- Some products can visually overlap spot closely when their premium is small.
+### Runtime warning
 
-- Yahoo `SI=F` and `GC=F` are **futures-based spot proxies**, not direct physical spot benchmarks.
+This is intentionally slow. Each product page performs its own authentication and may take tens of seconds or longer. A full seven-product run may take several minutes.
 
-- Saved Monex bearer tokens may expire.
+Keep the Streamlit refresh page open until completion. A visible Chromium window is the default because it allows a user to complete any browser challenge. Headless mode is optional but is less resilient when interaction is required.
 
-- The correlation heatmap is recalculated on the filtered timeframe, so correlations can change meaningfully as the time window changes.
+The Streamlit launcher applies a 30-minute safety timeout. Successful products are retained even if another product fails.
 
----
+## Automated refresh from the command line
+
+The same helper can be run independently:
+
+```bash
+python scripts/capture_monex_history.py --product all
+```
+
+Useful alternatives:
+
+```bash
+# Capture one product
+python scripts/capture_monex_history.py --product silver_eagles
+
+# Run without a visible browser
+python scripts/capture_monex_history.py --product all --headless
+
+# Capture cURLs without replacing JSON files
+python scripts/capture_monex_history.py --product all --no-json
+```
+
+Available product keys:
+
+```text
+junk_90_silver
+silver_eagles
+gold_eagles
+silver_1000oz
+gold_1kg
+gold_10oz
+silver_10oz
+all
+```
+
+Credential-bearing artifacts are written to `.monex_captures/`:
+
+```text
+.monex_captures/
+├─ junk_90_silver.curl.ps1
+├─ junk_90_silver.curl.sh
+├─ silver_eagles.curl.ps1
+├─ silver_eagles.curl.sh
+├─ ...
+└─ manifest.json
+```
+
+The persistent browser profile is stored in `.monex_browser_profile/`. Both locations are ignored by Git because they can contain temporary authentication data.
+
+## Product normalization
+
+Monex product prices are converted to implied price per troy ounce using product-specific assumptions.
+
+- 90% Silver U.S. Coin Bag: `$1` face value is treated as `0.715` troy ounces, so a `$1000` face bag contains `715` troy ounces.
+- 1000 oz Silver Bullion: `1000` troy ounces.
+- 10 oz Gold Bullion Bar: `10` troy ounces.
+- 1 Kilo Gold Bullion Bar: `32.1507466` troy ounces.
+- Products already quoted per ounce use `1.0` ounce per unit in the registry.
+
+The calculation is:
+
+```text
+price per ounce = product price / ounces per unit
+```
+
+Premium or discount is calculated as:
+
+```text
+(product price per ounce / reference spot price per ounce - 1) × 100
+```
+
+## Macro data
+
+The dashboard includes:
+
+- U.S. 10-year Treasury yield — `DGS10`
+- Japan 10-year government bond yield — `IRLTLT01JPM156N`
+- U.S. CPI — `CPIAUCSL`, converted to year-over-year inflation
+- U.S. unemployment — `UNRATE`
+- U.S. real GDP growth, percent change SAAR — `A191RL1Q225SBEA`
+
+Daily series are forward-filled where appropriate. Monthly values are mapped across their represented month, and quarterly values across their represented quarter.
+
+## Project structure
+
+```text
+PM_Watch/
+├─ metals_spot_w_corr_app.py
+├─ pages/
+│  └─ 1_Automated_Monex_Refresh.py
+├─ scripts/
+│  └─ capture_monex_history.py
+├─ tests/
+│  └─ test_capture_monex_history.py
+├─ history_*.json
+├─ cache/
+├─ requirements.txt
+└─ README.md
+```
+
+## Validation
+
+Run the helper tests from the repository root:
+
+```bash
+python -m unittest discover -s tests -p "test_capture_monex_history.py"
+```
+
+A syntax-only check can also be run with:
+
+```bash
+python -m py_compile scripts/capture_monex_history.py pages/1_Automated_Monex_Refresh.py
+```
+
+## Known limitations
+
+- Monex authentication can be slow or change without notice.
+- Captured bearer tokens and cookies are temporary.
+- Some product histories begin later than others.
+- Yahoo `SI=F` and `GC=F` are futures-based proxies rather than direct physical spot benchmarks.
+- The automated Streamlit button runs on the machine hosting Streamlit. A remote or managed deployment must permit subprocesses, persistent local files, and browser execution.
+- A hosted headless environment may not be able to complete interactive browser challenges.
 
 ## Data references
 
 ### Yahoo Finance
-- [Silver futures / spot proxy (SI=F)](https://finance.yahoo.com/quote/SI%3DF/)
-- [Gold futures / spot proxy (GC=F)](https://finance.yahoo.com/quote/GC%3DF/)
+
+- [Silver futures / spot proxy (`SI=F`)](https://finance.yahoo.com/quote/SI%3DF/)
+- [Gold futures / spot proxy (`GC=F`)](https://finance.yahoo.com/quote/GC%3DF/)
 
 ### Monex product pages
+
 - [90% Silver U.S. Coin Bag](https://www.monex.com/90-us-silver-coin-bag-price-charts/)
 - [Silver American Eagles](https://www.monex.com/silver-american-eagle-price-charts/)
 - [Gold American Eagles](https://www.monex.com/gold-american-eagle-price-charts/)
@@ -373,24 +316,6 @@ This keeps slider/date adjustments much faster by avoiding unnecessary reloading
 - [10 oz Gold Bullion Bar](https://www.monex.com/10-oz-gold-bullion-bar-price-charts/)
 - [10 oz Silver Bullion Bar](https://www.monex.com/10-oz-silver-bullion-price-charts/)
 
-### nFusion widget pages
-- [90% Silver Coin Bag widget](https://widget.nfusionsolutions.com/custom/monex/chart/1/a0fa8f6f-0b7b-4d1a-bb3f-045d29d8aee5/59155a1a-4c2d-44c1-9ae2-1b083713b0d5?symbols=SC)
-- [Silver American Eagles widget](https://widget.nfusionsolutions.com/custom/monex/chart/1/a0fa8f6f-0b7b-4d1a-bb3f-045d29d8aee5/59155a1a-4c2d-44c1-9ae2-1b083713b0d5?symbols=SAEI)
-- [Gold American Eagles widget](https://widget.nfusionsolutions.com/custom/monex/chart/1/a0fa8f6f-0b7b-4d1a-bb3f-045d29d8aee5/59155a1a-4c2d-44c1-9ae2-1b083713b0d5?symbols=AE)
-- [1000 oz Silver Bullion widget](https://widget.nfusionsolutions.com/custom/monex/chart/1/a0fa8f6f-0b7b-4d1a-bb3f-045d29d8aee5/59155a1a-4c2d-44c1-9ae2-1b083713b0d5?symbols=SBI1000)
-- [1 Kilo Gold Bullion widget](https://widget.nfusionsolutions.com/custom/monex/chart/1/a0fa8f6f-0b7b-4d1a-bb3f-045d29d8aee5/59155a1a-4c2d-44c1-9ae2-1b083713b0d5?symbols=GBX1K)
-- [10 oz Gold Bullion widget](https://widget.nfusionsolutions.com/custom/monex/chart/1/a0fa8f6f-0b7b-4d1a-bb3f-045d29d8aee5/59155a1a-4c2d-44c1-9ae2-1b083713b0d5?symbols=GBX10)
-- [10 oz Silver Bullion widget](https://widget.nfusionsolutions.com/custom/monex/chart/1/a0fa8f6f-0b7b-4d1a-bb3f-045d29d8aee5/59155a1a-4c2d-44c1-9ae2-1b083713b0d5?symbols=SBX)
-
-### FRED macro series
-- [U.S. 10Y Treasury yield (DGS10)](https://fred.stlouisfed.org/series/DGS10)
-- [Japan 10Y government bond yield (IRLTLT01JPM156N)](https://fred.stlouisfed.org/series/IRLTLT01JPM156N)
-- [U.S. CPI for All Urban Consumers (CPIAUCSL)](https://fred.stlouisfed.org/series/CPIAUCSL)
-- [U.S. unemployment rate (UNRATE)](https://fred.stlouisfed.org/series/UNRATE)
-- [Real GDP growth, percent change SAAR (A191RL1Q225SBEA)](https://fred.stlouisfed.org/series/A191RL1Q225SBEA)
-
----
-
 ## Usage note
 
-This dashboard is intended for research and comparative analysis. Users should independently verify all prices, spreads, and macro interpretations before using the output for investment, trading, or business decisions.
+This dashboard is intended for research and comparative analysis. Independently verify prices, spreads, and macro interpretations before using them for investment, trading, or business decisions.
