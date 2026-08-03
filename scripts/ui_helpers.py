@@ -167,6 +167,7 @@ def render_date_controls(
 ) -> tuple[pd.Timestamp, pd.Timestamp]:
     global_min = merged_df["date"].min().date()
     global_max = merged_df["date"].max().date()
+
     initial_start = max(
         monex_all_df["date"].min().date(),
         spot_df["date"].min().date(),
@@ -174,46 +175,59 @@ def render_date_controls(
     initial_start = min(max(initial_start, global_min), global_max)
     initial_end = global_max
 
-    st.session_state.setdefault("start_date", initial_start)
-    st.session_state.setdefault("end_date", initial_end)
+    # Session state survives reruns and data refreshes, so clamp it every time.
+    stored_start = st.session_state.get("start_date", initial_start)
+    stored_end = st.session_state.get("end_date", initial_end)
+
+    current_start = min(max(stored_start, global_min), global_max)
+    current_end = min(max(stored_end, global_min), global_max)
+
+    if current_start > current_end:
+        current_start = initial_start
+        current_end = initial_end
+
+    st.session_state.start_date = current_start
+    st.session_state.end_date = current_end
 
     st.subheader("Date range")
+
     slider_start, slider_end = st.slider(
         "Select observed time range",
         min_value=global_min,
         max_value=global_max,
-        value=(
-            st.session_state.start_date,
-            st.session_state.end_date,
-        ),
+        value=(current_start, current_end),
         format="YYYY-MM-DD",
     )
-    st.session_state.start_date = slider_start
-    st.session_state.end_date = slider_end
 
     left, right = st.columns(2)
+
     with left:
         start_input = st.date_input(
             "Start date",
-            value=st.session_state.start_date,
-            min_value=global_min,
-            max_value=global_max,
-        )
-    with right:
-        end_input = st.date_input(
-            "End date",
-            value=st.session_state.end_date,
+            value=slider_start,
             min_value=global_min,
             max_value=global_max,
         )
 
+    with right:
+        end_input = st.date_input(
+            "End date",
+            value=slider_end,
+            min_value=global_min,
+            max_value=global_max,
+        )
+
+    if start_input > end_input:
+        st.error("Start date must be earlier than or equal to end date.")
+        st.stop()
+
     st.session_state.start_date = start_input
     st.session_state.end_date = end_input
-    start_date = pd.Timestamp(start_input).normalize()
-    end_date = pd.Timestamp(end_input).normalize()
-    if start_date > end_date:
-        raise ValueError("Start date must be earlier than or equal to end date.")
-    return start_date, end_date
+
+    return (
+        pd.Timestamp(start_input).normalize(),
+        pd.Timestamp(end_input).normalize(),
+    )
 
 
 def render_product_selector() -> list[str]:
