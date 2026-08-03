@@ -824,46 +824,24 @@ if reload_monex_json:
 
     for meta in MONEX_PRODUCTS.values():
         path = Path(meta["json_file"])
-<<<<<<< HEAD
-
-=======
->>>>>>> 7df6a002087f39e6c8f2cf275e525592fa6bd59d
         if path.exists():
             available_files.append(path.name)
         else:
             missing_files.append(path.name)
 
-<<<<<<< HEAD
-    # Clear only caches derived from the local Monex JSON files.
-    # Do not clear Yahoo or FRED caches.
-=======
     # Clear only caches that parse and concatenate the local Monex files.
     # Yahoo/FRED caches remain warm, and no Monex network request is made.
->>>>>>> 7df6a002087f39e6c8f2cf275e525592fa6bd59d
     load_monex_json_cached.clear()
     build_monex_all_df.clear()
 
     if available_files:
         status_placeholder.success(
-<<<<<<< HEAD
-            "Reloaded local Monex JSON files:\n"
-            + "\n".join(f"- {name}" for name in available_files)
-        )
-
-    if missing_files:
-        status_placeholder.warning(
-            "The following Monex JSON files were not found:\n"
-            + "\n".join(f"- {name}" for name in missing_files)
-        )
-=======
-            "Reloaded local Monex JSON data from: "
-            + ", ".join(available_files)
+            "Reloaded local Monex JSON data from: " + ", ".join(available_files)
         )
     if missing_files:
         status_placeholder.warning(
             "Missing local Monex JSON files: " + ", ".join(missing_files)
         )
->>>>>>> 7df6a002087f39e6c8f2cf275e525592fa6bd59d
 
 if run_refresh:
     refresh_messages = []
