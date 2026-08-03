@@ -38,7 +38,7 @@ def render_header() -> None:
         "spot data."
     )
     st.write(
-        "For the Monex 90% silver U.S. coin bag, $1 face value is treated as "
+        "For the Monex 90 percent silver U.S. coin bag, 1 USD face value is treated as "
         "0.715 troy oz, so a $1000 face bag contains 715 oz."
     )
     st.write("Monex 10 oz silver bullion history begins on 09-22-2022.")
