@@ -105,7 +105,7 @@ MONEX_PRODUCTS = {
         "symbol": "sbx",
         "referer_symbol": "SBX",
         "metal": "silver",
-        "ounces_per_unit": 10.0,
+        "ounces_per_unit": 1.0,
         "json_file": "history_10oz_silver.json",
         "page_url": "https://www.monex.com/10-oz-silver-bullion-price-charts/",
         "widget_url": "https://widget.nfusionsolutions.com/custom/monex/chart/1/a0fa8f6f-0b7b-4d1a-bb3f-045d29d8aee5/59155a1a-4c2d-44c1-9ae2-1b083713b0d5?symbols=SBX",
