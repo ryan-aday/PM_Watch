@@ -695,7 +695,7 @@ with st.sidebar:
     
     st.header("Data source options")
 
-    run_curl = st.button("Refresh Monex JSON files", use_container_width=True)
+    reload_monex_json = st.button("Reload Monex JSON files from disk", use_container_width=True)
     uploaded_file = st.file_uploader("Or upload matching Monex JSON", type=["json"])
 
     st.markdown("---")
@@ -762,7 +762,7 @@ with st.sidebar:
         ),
     }
     
-    run_refresh = st.button("Refresh Monex JSON files using manual token input")
+    run_refresh = st.button("Query Monex using manual token input")
     
     st.markdown("---")
     st.subheader("Manual data refresh")
@@ -832,20 +832,31 @@ with st.sidebar:
 # -----------------------------
 status_placeholder = st.empty()
 
-if run_curl:
-    refresh_messages = []
+if reload_monex_json:
+    available_files = []
+    missing_files = []
 
-    for key, meta in MONEX_PRODUCTS.items():
-        ok, msg = refresh_monex_json_to_file(
-            output_path=Path(meta["json_file"]),
-            symbol=meta["symbol"],
-            referer_symbol=meta["referer_symbol"],
-            bearer_token=meta["bearer_token"],
+    for meta in MONEX_PRODUCTS.values():
+        path = Path(meta["json_file"])
+        if path.exists():
+            available_files.append(path.name)
+        else:
+            missing_files.append(path.name)
+
+    # Clear only caches that parse and concatenate the local Monex files.
+    # Yahoo/FRED caches remain warm, and no Monex network request is made.
+    load_monex_json_cached.clear()
+    build_monex_all_df.clear()
+
+    if available_files:
+        status_placeholder.success(
+            "Reloaded local Monex JSON data from: "
+            + ", ".join(available_files)
         )
-        refresh_messages.append(msg)
-
-    st.cache_data.clear()
-    status_placeholder.info("\n".join(refresh_messages))
+    if missing_files:
+        status_placeholder.warning(
+            "Missing local Monex JSON files: " + ", ".join(missing_files)
+        )
 
 if run_refresh:
     refresh_messages = []

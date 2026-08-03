@@ -113,6 +113,10 @@ history_10oz_silver.json
 
 A refresh never deletes the entire historical dataset first. Each product file is replaced only after the returned JSON is non-empty, contains intervals, and matches the expected product symbol.
 
+## Reloading local Monex JSON files
+
+The main dashboard button **Reload Monex JSON files from disk** does not contact Monex. It clears only the local Monex parsing caches and immediately rereads the existing `history_*.json` files in the application directory. Use it after the Playwright helper or another process has written updated JSON files.
+
 ## Manual Monex refresh
 
 The original manual workflow remains available in the main dashboard sidebar.
@@ -128,7 +132,7 @@ For each relevant product:
 7. Paste the command into a temporary text editor.
 8. Copy the value after `Authorization: Bearer`.
 9. Paste that value into the matching password field in the dashboard sidebar.
-10. Select **Refresh Monex JSON files using manual token input**.
+10. Select **Query Monex using manual token input**.
 
 Tokens can expire. If a token or cookie is rejected, the previous local JSON file remains available.
 

@@ -185,7 +185,6 @@ if run_capture:
             st.code(output, language="text")
 
             if result.returncode == 0:
-                st.cache_data.clear()
                 capture_status.update(
                     label=f"Monex JSON refresh completed in {elapsed / 60:.1f} minutes.",
                     state="complete",
