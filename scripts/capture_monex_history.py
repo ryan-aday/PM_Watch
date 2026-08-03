@@ -562,6 +562,12 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Capture cURL files only; do not replace history_*.json files.",
     )
+    parser.add_argument(
+    "--executable-path",
+    type=Path,
+    default=None,
+    help="Explicit Chromium executable, such as /usr/bin/chromium.",
+    )
     return parser
 
 
@@ -618,6 +624,16 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             }
             if channel:
                 launch_options["channel"] = channel
+
+            if args.executable_path:
+                executable = args.executable_path.expanduser().resolve()
+
+                if not executable.exists():
+                    raise RuntimeError(
+                        f"Chromium executable does not exist: {executable}"
+                    )
+
+                launch_options["executable_path"] = str(executable)
 
             context = browser_type.launch_persistent_context(
                 user_data_dir=str(args.profile_dir.resolve()),

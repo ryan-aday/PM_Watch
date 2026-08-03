@@ -9,7 +9,7 @@ from typing import Optional, Tuple
 
 import streamlit as st
 
-import shutil
+import shutil, os
 
 
 APP_ROOT = Path(__file__).resolve().parents[1]
@@ -18,6 +18,10 @@ CAPTURE_DIR = APP_ROOT / ".monex_captures"
 PROFILE_DIR = APP_ROOT / ".monex_browser_profile"
 MAX_RUNTIME_SECONDS = 30 * 60
 
+IS_HOSTED_HEADLESS = (
+    sys.platform.startswith("linux")
+    and not os.environ.get("DISPLAY")
+)
 
 @st.cache_data(ttl=60, show_spinner=False)
 def check_playwright_chromium() -> tuple[bool, str]:
@@ -63,7 +67,7 @@ def find_chromium_executable() -> str | None:
 
     return None
 
-def build_capture_command(headless: bool) -> list[str]:
+def build_capture_command(headless: bool,executable_path: str) -> list[str]:
     command = [
         sys.executable,
         "-u",
@@ -78,6 +82,8 @@ def build_capture_command(headless: bool) -> list[str]:
         str(CAPTURE_DIR),
         "--profile-dir",
         str(PROFILE_DIR),
+        "--executable-path",
+        executable_path,
     ]
     if headless:
         command.append("--headless")
@@ -145,12 +151,14 @@ with st.sidebar:
     )
     headless = st.checkbox(
         "Run Chromium headless",
-        value=False,
+        value=IS_HOSTED_HEADLESS,
+        disabled=0,
         help=(
-            "Visible Chromium is recommended because it lets you complete any browser "
-            "challenge. Headless mode is useful only when the pages authenticate without interaction."
+            "Headless mode is required on hosted Linux environments. "
+            "A visible browser is available only when running locally."
         ),
     )
+    
     run_capture = st.button(
         "Update all Monex JSON files",
         type="primary",
@@ -162,18 +170,28 @@ with st.sidebar:
         "The button runs locally on the machine hosting Streamlit."
     )
 
-if run_capture:
-    command = build_capture_command(headless=headless)
+chromium_path = find_chromium_executable()
+
+if run_capture and chromium_path:
+    command = build_capture_command(
+        headless=True,
+        executable_path=chromium_path,
+    )
     started = time.monotonic()
 
     with st.status(
         "Opening Monex pages and capturing authenticated history requests...",
         expanded=True,
     ) as capture_status:
-        st.write(
-            "A Chromium window may open. No Developer Tools work is required. "
-            "Complete a browser challenge if one appears and leave the browser open."
-        )
+        if headless == IS_HOSTED_HEADLESS:
+            st.write(
+                "Chromium will run headlessly on the hosted Streamlit server."
+            )
+        else:
+            st.write(
+                "A Chromium window may open. Complete a browser challenge "
+                "if one appears."
+            )
 
         try:
             result = subprocess.run(
