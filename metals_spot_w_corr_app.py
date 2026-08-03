@@ -15,6 +15,10 @@ from streamlit_extras.buy_me_a_coffee import button
 
 import requests
 
+from pandas_datareader.fred import FredReader
+import pandas as pd
+
+
 st.set_page_config(page_title="Physical Metals vs Spot", layout="wide")
 
 
@@ -199,44 +203,26 @@ def get_yahoo_metals_data_resilient(start_date: pd.Timestamp, end_date: pd.Times
 
         raise RuntimeError("Yahoo Finance pull failed and no local Yahoo cache file exists.")
         
+
 def fetch_fred_series_live(series_code: str, start_date: pd.Timestamp, end_date: pd.Timestamp) -> pd.Series:
-    url = "https://fred.stlouisfed.org/graph/fredgraph.csv"
-    params = {
-        "id": series_code,
-        "cosd": start_date.strftime("%Y-%m-%d"),
-        "coed": end_date.strftime("%Y-%m-%d"),
-    }
-    headers = {
-        "User-Agent": "Mozilla/5.0",
-        "Accept": "text/csv, text/plain, */*",
-    }
+    reader = FredReader(
+        symbols=series_code,
+        start=start_date,
+        end=end_date,
+        timeout=8,
+        retry_count=1,
+        pause=0.1,
+    )
 
-    response = requests.get(url, params=params, headers=headers, timeout=30)
-    response.raise_for_status()
+    df = reader.read()
 
-    text = response.text.strip()
-    if not text:
-        raise ValueError(f"Empty FRED response for {series_code}")
+    if df is None or df.empty or series_code not in df.columns:
+        raise ValueError(f"FRED returned no usable data for {series_code}")
 
-    df = pd.read_csv(io.StringIO(text))
-    df.columns = [str(c).strip().replace("\ufeff", "") for c in df.columns]
+    series = pd.to_numeric(df[series_code], errors="coerce")
+    series.index = pd.to_datetime(series.index).normalize()
 
-    date_col = None
-    for candidate in ["observation_date", "DATE", "date"]:
-        if candidate in df.columns:
-            date_col = candidate
-            break
-
-    if date_col is None or series_code not in df.columns:
-        raise ValueError(
-            f"Unexpected FRED columns for {series_code}: {df.columns.tolist()}"
-        )
-
-    df[date_col] = pd.to_datetime(df[date_col], errors="coerce").dt.normalize()
-    df[series_code] = pd.to_numeric(df[series_code], errors="coerce")
-    df = df.dropna(subset=[date_col])
-
-    return pd.Series(df[series_code].values, index=df[date_col], name=series_code)
+    return series.rename(series_code)
 
 
 def get_fred_series_resilient(series_code: str, start_date: pd.Timestamp, end_date: pd.Timestamp) -> tuple[pd.Series, list[str]]:
@@ -838,18 +824,38 @@ if reload_monex_json:
 
     for meta in MONEX_PRODUCTS.values():
         path = Path(meta["json_file"])
+<<<<<<< HEAD
+
+=======
+>>>>>>> 7df6a002087f39e6c8f2cf275e525592fa6bd59d
         if path.exists():
             available_files.append(path.name)
         else:
             missing_files.append(path.name)
 
+<<<<<<< HEAD
+    # Clear only caches derived from the local Monex JSON files.
+    # Do not clear Yahoo or FRED caches.
+=======
     # Clear only caches that parse and concatenate the local Monex files.
     # Yahoo/FRED caches remain warm, and no Monex network request is made.
+>>>>>>> 7df6a002087f39e6c8f2cf275e525592fa6bd59d
     load_monex_json_cached.clear()
     build_monex_all_df.clear()
 
     if available_files:
         status_placeholder.success(
+<<<<<<< HEAD
+            "Reloaded local Monex JSON files:\n"
+            + "\n".join(f"- {name}" for name in available_files)
+        )
+
+    if missing_files:
+        status_placeholder.warning(
+            "The following Monex JSON files were not found:\n"
+            + "\n".join(f"- {name}" for name in missing_files)
+        )
+=======
             "Reloaded local Monex JSON data from: "
             + ", ".join(available_files)
         )
@@ -857,6 +863,7 @@ if reload_monex_json:
         status_placeholder.warning(
             "Missing local Monex JSON files: " + ", ".join(missing_files)
         )
+>>>>>>> 7df6a002087f39e6c8f2cf275e525592fa6bd59d
 
 if run_refresh:
     refresh_messages = []
