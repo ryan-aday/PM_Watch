@@ -1,13 +1,8 @@
-# Silver Watch — Monex vs Spot Metals Dashboard
+# Physical Metals Analysis
 
 A Streamlit dashboard for comparing Monex physical precious-metals products with Yahoo Finance silver and gold futures proxies, with FRED macro overlays and dynamic correlation analysis.
 
-The repository includes historical Monex JSON files so the dashboard remains usable when live authentication is unavailable. Users can refresh those files in either of two ways:
-
-1. manually paste bearer tokens captured from browser Developer Tools; or
-2. run the Playwright browser helper from the Streamlit sidebar or command line.
-
-The automated helper validates each response before replacing its corresponding historical JSON file. A failed product therefore keeps its previous local history.
+The repository includes historical Monex JSON files so the dashboard remains usable when live authentication is unavailable. Monex data can be updated manually with captured bearer tokens or automatically with the Playwright browser helper.
 
 ## Products tracked
 
@@ -21,122 +16,31 @@ The automated helper validates each response before replacing its corresponding 
 
 Silver products are compared with Yahoo Finance `SI=F`; gold products are compared with `GC=F`.
 
-## Main features
-
-- Multiple Monex products through a shared product registry
-- Historical local JSON fallback
-- Manual bearer-token refresh from the main dashboard sidebar
-- Automated page-specific cURL and JSON capture through Playwright
-- Per-ounce normalization
-- Absolute and percentage premiums or discounts to spot
-- Synchronized date filtering
-- Yahoo and FRED caching
-- U.S. and Japanese yield, CPI, unemployment, and GDP overlays
-- Dynamic correlation heatmap
-- CSV export of the filtered view
-
 ## Installation
 
-### 1. Create and activate a virtual environment
-
-Windows PowerShell:
+Create and activate a virtual environment, then install the consolidated dependencies:
 
 ```powershell
 python -m venv venv
 venv\Scripts\Activate.ps1
-```
-
-Windows Command Prompt:
-
-```bat
-python -m venv venv
-venv\Scripts\activate.bat
-```
-
-macOS or Linux:
-
-```bash
-python3 -m venv venv
-source venv/bin/activate
-```
-
-### 2. Install all Python dependencies
-
-The project uses one consolidated dependency file:
-
-```bash
 python -m pip install -r requirements.txt
 ```
 
-### 3. Install the Playwright Chromium browser
+Install the Chromium binary used by the automated Monex refresh:
 
-The Python package and the browser binary are separate installations. This command is required before using the automated Monex refresh:
-
-```bash
+```powershell
 python -m playwright install chromium
 ```
 
-On some Linux systems, Playwright may also require operating-system packages:
+On Linux, Playwright may also need system packages:
 
 ```bash
 python -m playwright install --with-deps chromium
 ```
 
-## Running the app
+## Streamlit secrets
 
-From the repository root:
-
-```bash
-streamlit run metals_spot_w_corr_app.py
-```
-
-Streamlit automatically exposes two pages in its sidebar navigation:
-
-- the main precious-metals dashboard; and
-- **Automated Monex Refresh**.
-
-## Historical-data behavior
-
-The checked-in `history_*.json` files are the baseline data source. The app loads these files whenever a live refresh is not requested or does not succeed.
-
-Files used by the app:
-
-```text
-history_90_percent_silver.json
-history_silver_eagles.json
-history_gold_eagles.json
-history_1000oz_silver.json
-history_1kg_gold.json
-history_10oz_gold.json
-history_10oz_silver.json
-```
-
-A refresh never deletes the entire historical dataset first. Each product file is replaced only after the returned JSON is non-empty, contains intervals, and matches the expected product symbol.
-
-## Reloading local Monex JSON files
-
-The main dashboard button **Reload Monex JSON files from disk** does not contact Monex. It clears only the local Monex parsing caches and immediately rereads the existing `history_*.json` files in the application directory. Use it after the Playwright helper or another process has written updated JSON files.
-
-## Manual Monex refresh
-
-The original manual workflow remains available in the main dashboard sidebar.
-
-For each relevant product:
-
-1. Open the Monex product or nFusion widget link under **Data references**.
-2. Press **F12** to open Developer Tools.
-3. Select the **Network** tab.
-4. Reload the page if necessary.
-5. Find the request named **history**.
-6. Right-click it and choose **Copy as cURL**.
-7. Paste the command into a temporary text editor.
-8. Copy the value after `Authorization: Bearer`.
-9. Paste that value into the matching password field in the dashboard sidebar.
-10. Select **Query Monex using manual token input**.
-
-Tokens can expire. If a token or cookie is rejected, the previous local JSON file remains available.
-
-The manual request path also uses the common client ID, widget instance, and cookie values configured through Streamlit secrets. A local `.streamlit/secrets.toml` can contain values such as:
+The manual Monex request path uses `.streamlit/secrets.toml`:
 
 ```toml
 COMMON_CLIENT_ID = "..."
@@ -154,123 +58,38 @@ SILVER_10_OZ_BEARER_TOKEN = ""
 
 Do not commit active tokens, cookies, browser profiles, or captured cURL files.
 
-## Automated Monex refresh from Streamlit
+## Running the app
 
-Open **Automated Monex Refresh** from the Streamlit sidebar.
+From the repository root:
 
-The page checks whether both Playwright and its Chromium browser are installed. When ready, select:
-
-```text
-Update all Monex JSON files
+```powershell
+streamlit run Physical_Metals_Analysis.py
 ```
 
-The browser helper then:
+The sidebar navigation contains:
 
-1. opens each of the seven Monex product pages;
-2. watches network activity from the page and embedded chart frames;
-3. identifies that product's authenticated `POST /api/v1/Data/history` request;
-4. captures the exact request as PowerShell and Bash cURL files;
-5. validates the returned JSON; and
-6. atomically replaces the matching `history_*.json` file.
+- **Physical Metals Analysis**
+- **Automated Monex Refresh**
 
-### Runtime warning
+The main entry file is named `Physical_Metals_Analysis.py` so Streamlit displays the intended page name instead of deriving a label from the former implementation filename.
 
-This is intentionally slow. Each product page performs its own authentication and may take tens of seconds or longer. A full seven-product run may take several minutes.
+## Application structure
 
-Keep the Streamlit refresh page open until completion. A visible Chromium window is the default because it allows a user to complete any browser challenge. Headless mode is optional but is less resilient when interaction is required.
-
-The Streamlit launcher applies a 30-minute safety timeout. Successful products are retained even if another product fails.
-
-## Automated refresh from the command line
-
-The same helper can be run independently:
-
-```bash
-python scripts/capture_monex_history.py --product all
-```
-
-Useful alternatives:
-
-```bash
-# Capture one product
-python scripts/capture_monex_history.py --product silver_eagles
-
-# Run without a visible browser
-python scripts/capture_monex_history.py --product all --headless
-
-# Capture cURLs without replacing JSON files
-python scripts/capture_monex_history.py --product all --no-json
-```
-
-Available product keys:
-
-```text
-junk_90_silver
-silver_eagles
-gold_eagles
-silver_1000oz
-gold_1kg
-gold_10oz
-silver_10oz
-all
-```
-
-Credential-bearing artifacts are written to `.monex_captures/`:
-
-```text
-.monex_captures/
-├─ junk_90_silver.curl.ps1
-├─ junk_90_silver.curl.sh
-├─ silver_eagles.curl.ps1
-├─ silver_eagles.curl.sh
-├─ ...
-└─ manifest.json
-```
-
-The persistent browser profile is stored in `.monex_browser_profile/`. Both locations are ignored by Git because they can contain temporary authentication data.
-
-## Product normalization
-
-Monex product prices are converted to implied price per troy ounce using product-specific assumptions.
-
-- 90% Silver U.S. Coin Bag: `$1` face value is treated as `0.715` troy ounces, so a `$1000` face bag contains `715` troy ounces.
-- 1000 oz Silver Bullion: `1000` troy ounces.
-- 10 oz Gold Bullion Bar: `10` troy ounces.
-- 1 Kilo Gold Bullion Bar: `32.1507466` troy ounces.
-- Products already quoted per ounce use `1.0` ounce per unit in the registry.
-
-The calculation is:
-
-```text
-price per ounce = product price / ounces per unit
-```
-
-Premium or discount is calculated as:
-
-```text
-(product price per ounce / reference spot price per ounce - 1) × 100
-```
-
-## Macro data
-
-The dashboard includes:
-
-- U.S. 10-year Treasury yield — `DGS10`
-- Japan 10-year government bond yield — `IRLTLT01JPM156N`
-- U.S. CPI — `CPIAUCSL`, converted to year-over-year inflation
-- U.S. unemployment — `UNRATE`
-- U.S. real GDP growth, percent change SAAR — `A191RL1Q225SBEA`
-
-Daily series are forward-filled where appropriate. Monthly values are mapped across their represented month, and quarterly values across their represented quarter.
-
-## Project structure
+The root Streamlit page is intentionally a thin coordinator. Reusable behavior lives in the `scripts` package:
 
 ```text
 PM_Watch/
-├─ metals_spot_w_corr_app.py
+├─ Physical_Metals_Analysis.py
 ├─ pages/
 │  └─ 1_Automated_Monex_Refresh.py
 ├─ scripts/
+│  ├─ __init__.py
+│  ├─ app_config.py
+│  ├─ storage.py
+│  ├─ monex_data.py
+│  ├─ market_data.py
+│  ├─ charts.py
+│  ├─ ui_helpers.py
 │  └─ capture_monex_history.py
 ├─ tests/
 │  └─ test_capture_monex_history.py
@@ -280,46 +99,153 @@ PM_Watch/
 └─ README.md
 ```
 
-## Validation
+Module responsibilities:
 
-Run the helper tests from the repository root:
+- `app_config.py`: page title, product registry, tickers, and macro-series constants.
+- `storage.py`: local pickle persistence.
+- `monex_data.py`: JSON validation, parsing, manual refresh, local reload, and spot-spread calculations.
+- `market_data.py`: Yahoo and FRED retrieval, resilient cache fallbacks, frequency expansion, and merged datasets.
+- `charts.py`: Plotly price, spread, macro, and correlation figures.
+- `ui_helpers.py`: Streamlit header, sidebar, date controls, product selector, and summary components.
+- `capture_monex_history.py`: Playwright capture of authenticated Monex history requests.
 
-```bash
-python -m unittest discover -s tests -p "test_capture_monex_history.py"
+## Historical-data behavior
+
+The checked-in `history_*.json` files are the baseline data source:
+
+```text
+history_90_percent_silver.json
+history_silver_eagles.json
+history_gold_eagles.json
+history_1000oz_silver.json
+history_1kg_gold.json
+history_10oz_gold.json
+history_10oz_silver.json
 ```
 
-A syntax-only check can also be run with:
+A product file is replaced only after a returned payload is non-empty, contains history intervals, and matches the expected symbol.
 
-```bash
-python -m py_compile scripts/capture_monex_history.py pages/1_Automated_Monex_Refresh.py
+### Reload local files
+
+The main-dashboard button **Reload Monex JSON files from disk** does not contact Monex. It clears only the Monex parsing caches and rereads the existing files in the application directory. Yahoo and FRED caches remain warm.
+
+Because each JSON file's modification time is included in the Monex cache key, newly written Playwright files are also detected automatically on the next main-page run.
+
+## Manual Monex refresh
+
+For each product:
+
+1. Open the relevant Monex product or nFusion widget page.
+2. Press **F12** and open **Network**.
+3. Reload the page if needed.
+4. Find the request named **history**.
+5. Copy it as cURL.
+6. Copy the value after `Authorization: Bearer`.
+7. Paste it into the matching password field.
+8. Select **Query Monex using manual token input**.
+
+Products with blank tokens keep using their existing local JSON files. Failed requests do not delete the prior history.
+
+## Automated Monex refresh
+
+Open **Automated Monex Refresh** and select **Update all Monex JSON files**.
+
+The helper:
+
+1. opens each Monex product page;
+2. observes page and embedded-frame network activity;
+3. captures the matching `POST /api/v1/Data/history` request;
+4. saves PowerShell and Bash cURL reproductions;
+5. validates the response; and
+6. atomically replaces the corresponding `history_*.json`.
+
+The full run is slow because each product page performs its own authentication. A visible browser is the default so interactive challenges can be completed. The Streamlit launcher has a 30-minute overall safety timeout.
+
+Command-line equivalent:
+
+```powershell
+python scripts/capture_monex_history.py --product all
+```
+
+Useful alternatives:
+
+```powershell
+python scripts/capture_monex_history.py --product silver_eagles
+python scripts/capture_monex_history.py --product all --headless
+python scripts/capture_monex_history.py --product all --no-json
+```
+
+Credential-bearing cURLs are written to `.monex_captures/`, and the persistent browser profile is stored in `.monex_browser_profile/`. Both are ignored by Git.
+
+## Yahoo and FRED data
+
+Yahoo metals data uses `yfinance`.
+
+FRED data uses `pandas_datareader.fred.FredReader`, which does not require a FRED API key. The app uses an eight-second timeout, one retry, and local pickle fallbacks.
+
+Macro series:
+
+- U.S. 10-year Treasury yield — `DGS10`
+- Japan 10-year government bond yield — `IRLTLT01JPM156N`
+- U.S. CPI — `CPIAUCSL`
+- U.S. unemployment — `UNRATE`
+- U.S. real GDP growth SAAR — `A191RL1Q225SBEA`
+
+Daily series are forward-filled. Monthly and quarterly series are expanded across their represented calendar periods.
+
+## Product normalization
+
+- 90% Silver U.S. Coin Bag: `$1000` face value × `0.715` oz per dollar = `715` troy ounces.
+- 1000 oz Silver Bullion: `1000` troy ounces.
+- 10 oz Gold Bullion Bar: `10` troy ounces.
+- 1 Kilo Gold Bullion Bar: `32.1507466` troy ounces.
+- Products already quoted per ounce use `1.0`.
+
+```text
+price per ounce = product price / ounces per unit
+```
+
+```text
+premium or discount (%) =
+(product price per ounce / reference spot price per ounce - 1) × 100
+```
+
+## Deployment storage
+
+On a single running instance, refreshed JSON files are recognized from the application directory. Managed platforms may recreate their filesystem during restart or redeployment, so runtime-written JSON is not guaranteed to persist.
+
+For durable deployments, either:
+
+- mount a persistent volume and point the helper and loader at it; or
+- upload validated JSON to object storage and use the checked-in files as fallback.
+
+## Validation
+
+Run syntax checks:
+
+```powershell
+python -m py_compile Physical_Metals_Analysis.py `
+  pages/1_Automated_Monex_Refresh.py `
+  scripts/app_config.py scripts/storage.py scripts/monex_data.py `
+  scripts/market_data.py scripts/charts.py scripts/ui_helpers.py `
+  scripts/capture_monex_history.py
+```
+
+Run the helper tests:
+
+```powershell
+python -m unittest discover -s tests -p "test_capture_monex_history.py"
 ```
 
 ## Known limitations
 
 - Monex authentication can be slow or change without notice.
-- Captured bearer tokens and cookies are temporary.
+- Captured tokens and cookies are temporary.
 - Some product histories begin later than others.
-- Yahoo `SI=F` and `GC=F` are futures-based proxies rather than direct physical spot benchmarks.
-- The automated Streamlit button runs on the machine hosting Streamlit. A remote or managed deployment must permit subprocesses, persistent local files, and browser execution.
-- A hosted headless environment may not be able to complete interactive browser challenges.
-
-## Data references
-
-### Yahoo Finance
-
-- [Silver futures / spot proxy (`SI=F`)](https://finance.yahoo.com/quote/SI%3DF/)
-- [Gold futures / spot proxy (`GC=F`)](https://finance.yahoo.com/quote/GC%3DF/)
-
-### Monex product pages
-
-- [90% Silver U.S. Coin Bag](https://www.monex.com/90-us-silver-coin-bag-price-charts/)
-- [Silver American Eagles](https://www.monex.com/silver-american-eagle-price-charts/)
-- [Gold American Eagles](https://www.monex.com/gold-american-eagle-price-charts/)
-- [1000 oz Silver Bullion](https://www.monex.com/1000-oz-silver-bullion-price-charts/)
-- [1 Kilo Gold Bullion Bar](https://www.monex.com/1-kilo-gold-bullion-bar-price-charts/)
-- [10 oz Gold Bullion Bar](https://www.monex.com/10-oz-gold-bullion-bar-price-charts/)
-- [10 oz Silver Bullion Bar](https://www.monex.com/10-oz-silver-bullion-price-charts/)
+- Yahoo `SI=F` and `GC=F` are futures-based proxies, not direct physical spot benchmarks.
+- A hosted environment must permit subprocesses, browser execution, and writable storage for the automated refresh.
+- A headless deployment may not be able to complete interactive browser challenges.
 
 ## Usage note
 
-This dashboard is intended for research and comparative analysis. Independently verify prices, spreads, and macro interpretations before using them for investment, trading, or business decisions.
+This dashboard is intended for research and comparative analysis. Independently verify prices, spreads, and macro interpretations before using the output for investment, trading, or business decisions.
