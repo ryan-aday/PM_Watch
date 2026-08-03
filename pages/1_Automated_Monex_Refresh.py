@@ -9,6 +9,8 @@ from typing import Optional, Tuple
 
 import streamlit as st
 
+import shutil
+
 
 APP_ROOT = Path(__file__).resolve().parents[1]
 HELPER_PATH = APP_ROOT / "scripts" / "capture_monex_history.py"
@@ -18,45 +20,48 @@ MAX_RUNTIME_SECONDS = 30 * 60
 
 
 @st.cache_data(ttl=60, show_spinner=False)
-def check_playwright_chromium() -> Tuple[bool, str]:
-    """Check both the Python package and the installed Chromium executable."""
+def check_playwright_chromium() -> tuple[bool, str]:
     if importlib.util.find_spec("playwright") is None:
         return (
             False,
-            "Playwright is not installed in this Python environment. Run "
-            "`python -m pip install -r requirements.txt`.",
+            "Playwright is not installed. Install requirements.txt first.",
         )
 
-    probe = (
-        "from pathlib import Path; "
-        "from playwright.sync_api import sync_playwright; "
-        "p = sync_playwright().start(); "
-        "path = Path(p.chromium.executable_path); "
-        "p.stop(); "
-        "raise SystemExit(0 if path.exists() else 1)"
-    )
+    chromium_path = find_chromium_executable()
 
-    try:
-        result = subprocess.run(
-            [sys.executable, "-c", probe],
-            cwd=APP_ROOT,
-            capture_output=True,
-            text=True,
-            timeout=20,
-            check=False,
-        )
-    except (OSError, subprocess.SubprocessError) as exc:
-        return False, f"Could not check the Playwright Chromium installation: {exc}"
-
-    if result.returncode != 0:
+    if not chromium_path:
         return (
             False,
-            "The Playwright package is installed, but its Chromium browser is not. "
-            "Run `python -m playwright install chromium`.",
+            "No Chromium executable was found. On Streamlit Community "
+            "Cloud, add `chromium` to packages.txt.",
         )
 
-    return True, "Playwright and its Chromium browser are available."
+    return True, f"Chromium is available at `{chromium_path}`."
 
+
+def find_chromium_executable() -> str | None:
+    candidates = [
+        shutil.which("chromium"),
+        shutil.which("chromium-browser"),
+        shutil.which("google-chrome"),
+        shutil.which("google-chrome-stable"),
+    ]
+
+    for candidate in candidates:
+        if candidate and Path(candidate).exists():
+            return candidate
+
+    try:
+        from playwright.sync_api import sync_playwright
+
+        with sync_playwright() as playwright:
+            bundled = Path(playwright.chromium.executable_path)
+            if bundled.exists():
+                return str(bundled)
+    except Exception:
+        pass
+
+    return None
 
 def build_capture_command(headless: bool) -> list[str]:
     command = [
